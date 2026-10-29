@@ -1,0 +1,55 @@
+# Local end-to-end stack: Postgres + backend API + nginx frontend.
+# Videos are stored on a named volume (the local stand-in for EFS in k8s).
+# Usage:  docker compose up --build   then open http://localhost:8080
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms
+      POSTGRES_DB: lms
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Seed schema + demo data on first init.
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      PORT: 4000
+      JWT_SECRET: local-dev-secret
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: lms
+      DB_PASSWORD: lms
+      DB_NAME: lms
+      # Same path the k8s manifests mount EFS at; here it's a named volume.
+      VIDEO_DATA_DIR: /data/videos
+      CORS_ORIGIN: "*"
+    ports:
+      - "4000:4000"
+    volumes:
+      - videodata:/data/videos
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:4000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  videodata:

@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: lms
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: backend
+          # Replace with your pushed image, e.g. <registry>/aviz-backend:1.0.0
+          image: 655700896650.dkr.ecr.ap-south-1.amazonaws.com/aviz-backend:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          # Pull non-secret config from the ConfigMap and secrets from the Secret.
+          envFrom:
+            - configMapRef:
+                name: lms-config
+            - secretRef:
+                name: lms-secrets
+          # Shared EFS volume: every replica sees the same video files, so
+          # uploads work no matter which pod the HPA routes them to.
+          volumeMounts:
+            - name: videos
+              mountPath: /data/videos
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: videos
+          persistentVolumeClaim:
+            claimName: lms-videos
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: lms
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000

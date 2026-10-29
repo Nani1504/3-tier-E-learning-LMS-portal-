@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lms-ingress
+  namespace: lms
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # REPLACE with your own ACM certificate ARN (must cover the host below).
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:655700896650:certificate/307309d8-8a4f-4de5-acc0-192b31b57c79
+    # Send plain-HTTP visitors to HTTPS.
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Default idle timeout is 60s; large video uploads need longer.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+spec:
+  ingressClassName: alb
+  rules:
+    # Main app: frontend serves the SPA and proxies /api to the backend.
+    # REPLACE with your own domain (must match the ACM certificate).
+    - host: awswithavinashreddy.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

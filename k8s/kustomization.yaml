@@ -1,0 +1,14 @@
+# Apply everything with:  kubectl apply -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: lms
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 02-secrets.yaml
+  - 03-postgres.yaml
+  - 04-efs-storage.yaml
+  - 05-backend.yaml
+  - 06-backend-hpa.yaml
+  - 07-frontend.yaml
+  - 08-ingress.yaml

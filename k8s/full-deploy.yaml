@@ -1,0 +1,450 @@
+# =============================================================================
+# Aviz Academy LMS — single-file Kubernetes manifest.
+# Deploy everything with:   kubectl apply -f k8s/full-deploy.yaml
+#
+# Image references default to `aviz-backend:latest` / `aviz-frontend:latest`
+# (works on kind/minikube with locally loaded images). Running
+# scripts/push-to-ecr.sh rewrites those two lines to your ECR image URIs so the
+# same file is ready to apply on EKS.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lms
+  labels:
+    app.kubernetes.io/part-of: aviz-academy
+---
+# ----------------------------- ConfigMap (app) -------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lms-config
+  namespace: lms
+data:
+  PORT: "4000"
+  JWT_EXPIRES_IN: "12h"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "lms"
+  # Lesson videos live here — the EFS volume mount shared by every replica.
+  VIDEO_DATA_DIR: "/data/videos"
+  CORS_ORIGIN: "*"
+---
+# ----------------------------- ConfigMap (db init) ---------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lms-db-init
+  namespace: lms
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS users (
+      id            SERIAL PRIMARY KEY,
+      name          TEXT        NOT NULL,
+      email         TEXT        NOT NULL UNIQUE,
+      password_hash TEXT        NOT NULL,
+      role          TEXT        NOT NULL CHECK (role IN ('student', 'instructor')),
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS courses (
+      id            SERIAL PRIMARY KEY,
+      title         TEXT        NOT NULL,
+      description   TEXT        NOT NULL DEFAULT '',
+      instructor_id INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS lessons (
+      id           SERIAL PRIMARY KEY,
+      course_id    INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      title        TEXT    NOT NULL,
+      description  TEXT    NOT NULL DEFAULT '',
+      position     INTEGER NOT NULL DEFAULT 0,
+      video_object TEXT,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS enrollments (
+      id          SERIAL PRIMARY KEY,
+      student_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id   INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (student_id, course_id)
+    );
+    CREATE TABLE IF NOT EXISTS progress (
+      id           SERIAL PRIMARY KEY,
+      student_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      lesson_id    INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+      completed    BOOLEAN NOT NULL DEFAULT false,
+      completed_at TIMESTAMPTZ,
+      UNIQUE (student_id, lesson_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_courses_instructor ON courses(instructor_id);
+    CREATE INDEX IF NOT EXISTS idx_lessons_course     ON lessons(course_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
+    CREATE INDEX IF NOT EXISTS idx_progress_student   ON progress(student_id);
+
+    -- Demo accounts (password "password123" for both).
+    INSERT INTO users (name, email, password_hash, role) VALUES
+      ('Alice Instructor', 'alice@lms.dev',
+       '$2b$10$FsfTzpBieNfLjgPw3AwCQeIB/1IbcdR.NC.L2VEru62eYReb/m4fW', 'instructor'),
+      ('Bob Student', 'bob@lms.dev',
+       '$2b$10$FsfTzpBieNfLjgPw3AwCQeIB/1IbcdR.NC.L2VEru62eYReb/m4fW', 'student')
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO courses (title, description, instructor_id)
+    SELECT 'Kubernetes 101',
+           'Learn container orchestration from pods to deployments and services.',
+           u.id
+      FROM users u WHERE u.email = 'alice@lms.dev'
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO lessons (course_id, title, description, position)
+    SELECT c.id, v.title, v.description, v.position
+      FROM courses c
+      CROSS JOIN (VALUES
+         ('What is Kubernetes?', 'Orchestration concepts and architecture.', 1),
+         ('Pods and Deployments', 'The core workload primitives.', 2),
+         ('Services and Ingress', 'Exposing your apps to traffic.', 3)
+      ) AS v(title, description, position)
+     WHERE c.title = 'Kubernetes 101'
+       AND NOT EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id);
+---
+# ----------------------------- Secrets ---------------------------------------
+# NOTE: plaintext for demo clarity. Use a real secrets manager in production.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lms-secrets
+  namespace: lms
+type: Opaque
+stringData:
+  JWT_SECRET: "change-me-to-a-long-random-string"
+  DB_USER: "lms"
+  DB_PASSWORD: "lms-strong-password"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secrets
+  namespace: lms
+type: Opaque
+stringData:
+  POSTGRES_USER: "lms"
+  POSTGRES_PASSWORD: "lms-strong-password"
+  POSTGRES_DB: "lms"
+---
+# ----------------------------- PostgreSQL (StatefulSet + PVC) ----------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: lms
+  labels:
+    app: postgres
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: lms
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: postgres-secrets
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "lms", "-d", "lms"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "lms", "-d", "lms"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: init
+          configMap:
+            name: lms-db-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+# ----------------------------- EFS shared video storage ----------------------
+# ReadWriteMany storage for lesson videos, shared by every backend replica.
+# Prerequisites (AWS side): EFS file system + mount targets in the cluster
+# VPC, SG allowing NFS 2049 from the VPC CIDR, and the aws-efs-csi-driver
+# EKS add-on installed. See k8s/04-efs-storage.yaml for details.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  # Dynamic provisioning: each PVC gets its own EFS Access Point.
+  provisioningMode: efs-ap
+  # REPLACE with your own FileSystemId (classroom FS shown).
+  fileSystemId: fs-0169eaf952733a352
+  directoryPerms: "700"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lms-videos
+  namespace: lms
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+# ----------------------------- Backend (API) ---------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: lms
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # The image's USER is the named "node" user; kubelet can only verify
+        # non-root from a numeric UID, so state it explicitly (node = 1000).
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: backend
+          image: 655700896650.dkr.ecr.ap-south-1.amazonaws.com/aviz-backend:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: lms-config
+            - secretRef:
+                name: lms-secrets
+          # Shared EFS volume: every replica sees the same video files.
+          volumeMounts:
+            - name: videos
+              mountPath: /data/videos
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: videos
+          persistentVolumeClaim:
+            claimName: lms-videos
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: lms
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+---
+# ----------------------------- Backend HPA (autoscaling) ---------------------
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: lms
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+---
+# ----------------------------- Frontend (SPA) --------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: lms
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: 655700896650.dkr.ecr.ap-south-1.amazonaws.com/aviz-frontend:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: BACKEND_URL
+              value: "http://backend:4000"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: lms
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+# ----------------------------- Ingress (AWS ALB) -----------------------------
+# Requires the AWS Load Balancer Controller. TLS comes from ACM; point a
+# Route53 ALIAS record at the provisioned ALB's DNS name.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lms-ingress
+  namespace: lms
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # REPLACE with your own ACM certificate ARN (must cover the host below).
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:655700896650:certificate/307309d8-8a4f-4de5-acc0-192b31b57c79
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Default idle timeout is 60s; large video uploads need longer.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+spec:
+  ingressClassName: alb
+  rules:
+    # REPLACE with your own domain (must match the ACM certificate).
+    - host: awswithavinashreddy.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

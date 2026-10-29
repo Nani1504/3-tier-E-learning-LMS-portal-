@@ -1,0 +1,1208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Aviz Academy — Kubernetes Deployment Guide</title>
+<style>
+:root{
+  --navy:#1e2a63; --navy-2:#2a3a7d; --orange:#f5921f; --orange-2:#d97a0c;
+  --sky:#3b9fe0;
+  --bg:#eceff6; --surface:#ffffff; --surface-2:#f5f7fc;
+  --ink:#1a2138; --ink-soft:#4b5573; --muted:#6b7492; --border:#dce1ee;
+  --code-bg:#141a33; --code-ink:#e7ecfb; --code-file:#9fb0e0;
+  --ok:#1f9d57; --warn:#c9791a;
+  --accent:var(--orange); --primary:var(--navy);
+  --radius:14px; --maxw:1080px;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0c1024; --surface:#141a33; --surface-2:#1a2140;
+    --ink:#eaeefb; --ink-soft:#c3cbe6; --muted:#8b95b8;
+    --border:#2a3358; --code-bg:#0a0f24; --code-ink:#e7ecfb; --code-file:#8fa2d8;
+    --navy:#8ea2e6; --primary:#aab8ee;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1024; --surface:#141a33; --surface-2:#1a2140;
+  --ink:#eaeefb; --ink-soft:#c3cbe6; --muted:#8b95b8; --border:#2a3358;
+  --code-bg:#0a0f24; --code-ink:#e7ecfb; --code-file:#8fa2d8;
+  --navy:#8ea2e6; --primary:#aab8ee;
+}
+:root[data-theme="light"]{
+  --bg:#eceff6; --surface:#ffffff; --surface-2:#f5f7fc;
+  --ink:#1a2138; --ink-soft:#4b5573; --muted:#6b7492; --border:#dce1ee;
+  --code-bg:#141a33; --code-ink:#e7ecfb; --code-file:#9fb0e0;
+  --navy:#1e2a63; --primary:#1e2a63;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+/* header */
+.masthead{background:
+   radial-gradient(1200px 400px at 80% -10%, rgba(59,159,224,.18), transparent 60%),
+   linear-gradient(160deg,var(--navy) 0%, #16204c 100%);
+  color:#fff;padding:40px 0 34px;border-bottom:3px solid var(--orange)}
+:root[data-theme="dark"] .masthead,
+:root:not([data-theme]) .masthead{color:#fff}
+.masthead .wrap{display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:16px}
+.brand img{height:56px;width:auto;background:#fff;border-radius:12px;padding:7px 10px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.brand .bt{font-weight:800;font-size:1.25rem;letter-spacing:.2px;color:#fff}
+.brand .bt small{display:block;font-weight:500;font-size:.72rem;letter-spacing:.22em;
+  text-transform:uppercase;color:#b9c6f2;margin-top:2px}
+.masthead h1{margin:.1em 0 0;font-size:2.15rem;line-height:1.12;font-weight:800;
+  letter-spacing:-.5px;text-wrap:balance;color:#fff;max-width:22ch}
+.masthead p.lede{margin:0;color:#d3dbf5;font-size:1.05rem;max-width:66ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chip{font-size:.72rem;font-weight:600;letter-spacing:.03em;color:#e9eefc;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  padding:5px 11px;border-radius:999px}
+.chip.o{background:rgba(245,146,31,.22);border-color:rgba(245,146,31,.5);color:#ffd9a8}
+
+/* layout with sticky TOC */
+.layout{display:grid;grid-template-columns:232px 1fr;gap:40px;
+  align-items:start;padding:40px 0 80px}
+nav.toc{position:sticky;top:20px;font-size:.86rem}
+nav.toc h5{margin:0 0 8px;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted)}
+nav.toc ol{list-style:none;margin:0 0 18px;padding:0;counter-reset:t}
+nav.toc.steps ol li{counter-increment:t}
+nav.toc a{display:block;text-decoration:none;color:var(--ink-soft);padding:4px 0;
+  border-left:2px solid transparent;padding-left:12px;margin-left:-2px}
+nav.toc a:hover{color:var(--primary)}
+nav.toc.steps a::before{content:counter(t) ".";color:var(--orange);font-weight:700;
+  margin-right:7px;font-variant-numeric:tabular-nums}
+main{min-width:0}
+
+section{margin-bottom:52px;scroll-margin-top:20px}
+h2.sec{font-size:1.55rem;font-weight:800;letter-spacing:-.3px;margin:0 0 6px;
+  color:var(--primary);display:flex;align-items:center;gap:12px}
+h2.sec .ey{font-size:.7rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--orange);background:color-mix(in srgb,var(--orange) 14%,transparent);
+  padding:4px 9px;border-radius:6px}
+.sec-intro{color:var(--ink-soft);max-width:70ch;margin:.2em 0 22px}
+h3{font-size:1.15rem;margin:26px 0 8px;color:var(--ink)}
+h4{font-size:.98rem;margin:20px 0 6px;color:var(--primary)}
+p{margin:.55em 0;max-width:72ch}
+a{color:var(--sky)}
+code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:5px;padding:.06em .38em;color:var(--ink)}
+.note{background:var(--surface-2);border-left:3px solid var(--sky);border-radius:0 8px 8px 0;
+  padding:11px 15px;font-size:.92rem;color:var(--ink-soft)}
+.note code{background:var(--surface)}
+
+/* cards / grids */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:18px 0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 18px 16px;box-shadow:0 1px 2px rgba(20,30,70,.04)}
+.card h3{margin:.1em 0 .3em;font-size:1.02rem}
+.card .k{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);
+  font-weight:700}
+.card p{font-size:.9rem;color:var(--ink-soft);margin:.4em 0}
+
+/* tier legend on stack */
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 26px}
+.tier{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--surface)}
+.tier .tt{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:8px}
+.tier .dot{width:11px;height:11px;border-radius:50%}
+.tier small{color:var(--muted);font-size:.8rem}
+.tier p{font-size:.86rem;color:var(--ink-soft);margin:.5em 0 0}
+
+/* component blocks */
+.component{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:0;margin:18px 0;overflow:hidden}
+.component>.chead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding:16px 20px 12px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.component .num{font-family:var(--mono);font-weight:700;color:#fff;background:#2a3a7d;
+  font-size:.8rem;padding:3px 9px;border-radius:7px}
+.component .ctitle{font-size:1.12rem;font-weight:800;color:var(--ink)}
+.component .ckind{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.component .cbody{padding:14px 20px 6px}
+.component .cbody>p{font-size:.93rem;color:var(--ink-soft)}
+.keys{margin:10px 0 4px;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.keys li{font-size:.87rem;color:var(--ink-soft);padding-left:20px;position:relative}
+.keys li::before{content:"▸";color:var(--orange);position:absolute;left:2px;top:0}
+.component .cbody .code{margin:14px -20px 0;border-radius:0;border-left:0;border-right:0}
+
+/* code */
+.code{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;margin:14px 0}
+.code-head{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px 7px 14px;background:rgba(255,255,255,.04);
+  border-bottom:1px solid rgba(255,255,255,.08)}
+.code-file{font-family:var(--mono);font-size:.76rem;color:var(--code-file);letter-spacing:.02em}
+.copy{font:600 .72rem/1 var(--sans);color:#cdd8f5;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.16);border-radius:6px;padding:5px 10px;cursor:pointer}
+.copy:hover{background:rgba(255,255,255,.16);color:#fff}
+.copy.done{color:#7ff0b0;border-color:rgba(127,240,176,.4)}
+.code pre{margin:0;padding:14px 16px;overflow-x:auto}
+.code code{font-family:var(--mono);font-size:.8rem;line-height:1.55;color:var(--code-ink);
+  background:none;border:0;padding:0;white-space:pre;display:block}
+
+/* accounts + checks */
+.accounts{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
+.acct{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;font-size:.9rem}
+.pill{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  padding:2px 8px;border-radius:999px;margin-right:8px}
+.pill-instructor{background:#e5e9f7;color:#1e2a63}
+.pill-student{background:#fdecd6;color:#b3670a}
+:root[data-theme="dark"] .pill-instructor{background:#26325e;color:#c4cff2}
+:root[data-theme="dark"] .pill-student{background:#4a3313;color:#f3c489}
+ol.checks,ol.deploy{padding-left:22px;max-width:72ch}
+ol.checks li{margin:6px 0;color:var(--ink-soft)}
+
+/* steps */
+.step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px 24px;margin:18px 0;box-shadow:0 1px 2px rgba(20,30,70,.04)}
+.step>.sh{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.step .sn{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  font-weight:800;font-family:var(--mono);color:#fff;
+  background:linear-gradient(150deg,var(--orange),var(--orange-2));font-size:1.05rem}
+.step h3{margin:0;font-size:1.2rem;color:var(--ink)}
+.step .sbody{color:var(--ink-soft)}
+.step .sbody p{font-size:.94rem}
+.step ul{max-width:72ch}
+.step ul li{margin:4px 0;color:var(--ink-soft)}
+
+/* trouble table */
+.trouble{display:flex;flex-direction:column;gap:10px}
+.tr{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;display:grid;grid-template-columns:1fr;gap:4px}
+.tr .sym{font-weight:700;color:var(--ink)}
+.tr .cause{font-size:.86rem;color:var(--warn)}
+.tr .fix{font-size:.9rem;color:var(--ink-soft)}
+
+/* architecture svg */
+.arch{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px;overflow-x:auto}
+.arch svg{display:block;margin:0 auto;min-width:640px;max-width:820px;width:100%;height:auto}
+.arch .abox{fill:var(--surface-2);stroke:var(--border);stroke-width:1.5}
+.arch .atitle{fill:var(--ink);font:700 15px var(--sans)}
+.arch .asub{fill:var(--muted);font:400 11.5px var(--mono)}
+.arch .aflow{stroke:var(--sky);stroke-width:2;fill:none;marker-end:url(#ah)}
+.arch .adash{stroke:var(--orange);stroke-width:2;fill:none;stroke-dasharray:5 4;marker-end:url(#ao)}
+.arch .alabel{fill:var(--ink-soft);font:500 11px var(--sans)}
+.arch .alabel-o{fill:var(--orange-2);font:600 11px var(--sans)}
+.arch .stripe1{fill:var(--sky)}
+.arch .stripe2{fill:var(--navy)}
+.arch .stripe3{fill:var(--orange)}
+:root[data-theme="dark"] .arch .stripe2{fill:#5b74d6}
+
+/* footer */
+footer{border-top:1px solid var(--border);padding:26px 0 60px;color:var(--muted);
+  font-size:.85rem;text-align:center}
+
+/* theme toggle (standalone only) */
+.tgl{position:fixed;top:14px;right:14px;z-index:50;background:var(--surface);
+  border:1px solid var(--border);color:var(--ink);border-radius:999px;padding:8px 14px;
+  font:600 .8rem var(--sans);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.toc{display:none}
+  .grid3,.grid2,.tiers{grid-template-columns:1fr}
+  .masthead h1{font-size:1.7rem}
+}
+</style>
+</head>
+<body>
+<button class="tgl" onclick="(function(r){var d=r.getAttribute('data-theme')==='dark';r.setAttribute('data-theme',d?'light':'dark');})(document.documentElement)">Toggle theme</button>
+
+<div class="masthead"><div class="wrap">
+  <div class="brand">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyNpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDYuMC1jMDAzIDc5LjE2NDUyNywgMjAyMC8xMC8xNS0xNzo0ODozMiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDIyLjEgKFdpbmRvd3MpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOkI1Qzg1QUM5RDVDNzExRjA4N0E5QkJDOUVDNkI2ODAxIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOkI1Qzg1QUNBRDVDNzExRjA4N0E5QkJDOUVDNkI2ODAxIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6QjVDODVBQzdENUM3MTFGMDg3QTlCQkM5RUM2QjY4MDEiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6QjVDODVBQzhENUM3MTFGMDg3QTlCQkM5RUM2QjY4MDEiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz5hRKq1AADBc0lEQVR42uzdCbxcZX0//id7clkS9iWY7d6EsIYkF0gUkE0WwQUUgiKI1h9VinHtYlX2tFq1xVirtbV1oShqa2u1/dnfv7a/LmpbQfsrYgikJHGrgKAmRIQk83/OvQGyzMw9M3Nm5jwz7/eLh3Nn7syZM2fOnJzzuc95vuMqlUoAAAAASNl4qwAAAABInYADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6AAwAAAEiegAMAAABInoADAAAASJ6A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CRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5AkcAAAAQJ7AAQAAAOQJHAAAAECewAEAAADkCRwAAABAnsABAAAA5P1PgAEAG8t7kR1YMSUAAAAASUVORK5CYII=" alt="Aviz Academy logo"/>
+    <span class="bt">Aviz Academy<small>Cloud &amp; DevOps</small></span>
+  </div>
+  <h1>E-Learning Platform — Kubernetes Deployment Guide</h1>
+  <p class="lede">A complete, self-guided walkthrough for deploying the 3-tier LMS
+  (React · Node/Express · PostgreSQL + Amazon EFS) to Kubernetes on Amazon EKS — architecture,
+  every component explained, all manifests in deploy order, and each command you'll run.</p>
+  <div class="chips">
+    <span class="chip">React (Vite)</span><span class="chip">Node.js + Express</span>
+    <span class="chip">PostgreSQL</span><span class="chip">Amazon EFS</span>
+    <span class="chip o">Kubernetes / EKS</span><span class="chip o">Docker + ECR</span>
+    <span class="chip o">HPA autoscaling</span>
+  </div>
+</div></div>
+
+<div class="wrap"><div class="layout">
+<nav class="toc steps">
+  <h5>Deployment steps</h5>
+  <ol><li><a href="#step-1">Install the required tools</a></li><li><a href="#step-2">Get the project code</a></li><li><a href="#step-3">Provision an EKS cluster</a></li><li><a href="#step-4">Install cluster add-ons</a></li><li><a href="#step-5">Build and push the images to ECR</a></li><li><a href="#step-6">Review configuration and secrets</a></li><li><a href="#step-7">Deploy to the cluster</a></li><li><a href="#step-8">Watch the rollout</a></li><li><a href="#step-9">Open the application</a></li><li><a href="#step-10">Verify it works end to end</a></li><li><a href="#step-11">Demonstrate autoscaling (HPA)</a></li><li><a href="#step-12">Demonstrate persistence</a></li><li><a href="#step-13">Tear down (avoid ongoing charges)</a></li></ol>
+  <h5>Reference</h5>
+  <ol style="counter-reset:none">
+    <li><a href="#architecture" style="padding-left:12px">Architecture</a></li>
+    <li><a href="#components" style="padding-left:12px">Components &amp; manifests</a></li>
+    <li><a href="#trouble" style="padding-left:12px">Troubleshooting</a></li>
+    <li><a href="#cheat" style="padding-left:12px">Command cheat sheet</a></li>
+  </ol>
+</nav>
+
+<main>
+  <section id="overview">
+    <h2 class="sec"><span class="ey">Overview</span></h2>
+    <p class="sec-intro">This system is a small but complete Learning Management System. Instructors
+    create courses and upload lesson videos; students enroll, watch, and track their progress. It's
+    built as three tiers so it can showcase the core Kubernetes building blocks — Deployments,
+    Services, a StatefulSet with persistent storage, ConfigMaps and Secrets, health probes, an
+    Ingress, and a Horizontal Pod Autoscaler.</p>
+    <div class="tiers">
+      <div class="tier"><div class="tt"><span class="dot" style="background:var(--sky)"></span>
+        Tier 1 · Presentation</div>
+        <small>React SPA served by nginx</small>
+        <p>Role-based UI for students and instructors. nginx also proxies <code>/api</code> to the
+        backend so the browser talks to one origin.</p></div>
+      <div class="tier"><div class="tt"><span class="dot" style="background:var(--navy)"></span>
+        Tier 2 · Application</div>
+        <small>Node.js + Express REST API</small>
+        <p>JWT auth, role-based access, courses/lessons, enrollments, progress, and video uploads.
+        Stateless, so it can scale horizontally.</p></div>
+      <div class="tier"><div class="tt"><span class="dot" style="background:var(--orange)"></span>
+        Tier 3 · Data</div>
+        <small>PostgreSQL + Amazon EFS</small>
+        <p>PostgreSQL is the system of record (persisted via a StatefulSet + PVC). Lesson videos
+        live on an EFS file system every backend replica mounts (ReadWriteMany).</p></div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec"><span class="ey">Architecture</span> Request &amp; data flow</h2>
+    <p class="sec-intro">Traffic enters through the Ingress. Page requests go to the frontend;
+    the frontend proxies API calls to the backend; the backend reads/writes PostgreSQL and stores
+    lesson videos on a shared Amazon EFS volume mounted at <code>/data/videos</code> in every
+    replica (ReadWriteMany), streaming them back at <code>/api/videos/…</code>. The HPA watches
+    the backend's CPU and adds replicas under load — each new pod mounts the same EFS volume.</p>
+    
+<div class="arch">
+<svg viewBox="0 0 820 600" role="img" aria-label="Architecture diagram">
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0 0 L7 3 L0 6 z" fill="var(--sky)"/></marker>
+    <marker id="ao" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0 0 L7 3 L0 6 z" fill="var(--orange)"/></marker>
+  </defs>
+
+  <!-- Browser -->
+  <g>
+    <rect class="abox" x="300" y="20" width="220" height="56" rx="11"/>
+    <rect class="stripe1" x="300" y="20" width="6" height="56" rx="3"/>
+    <text class="atitle" x="410" y="44" text-anchor="middle">Browser</text>
+    <text class="asub" x="410" y="63" text-anchor="middle">Student · Instructor</text>
+  </g>
+  <!-- Ingress -->
+  <g>
+    <rect class="abox" x="290" y="118" width="240" height="60" rx="11"/>
+    <rect class="stripe1" x="290" y="118" width="6" height="60" rx="3"/>
+    <text class="atitle" x="410" y="143" text-anchor="middle">Ingress — AWS ALB</text>
+    <text class="asub" x="410" y="162" text-anchor="middle">awswithavinashreddy.com · ACM TLS</text>
+  </g>
+  <!-- Frontend -->
+  <g>
+    <rect class="abox" x="290" y="220" width="240" height="60" rx="11"/>
+    <rect class="stripe1" x="290" y="220" width="6" height="60" rx="3"/>
+    <text class="atitle" x="410" y="245" text-anchor="middle">Frontend — nginx + React</text>
+    <text class="asub" x="410" y="264" text-anchor="middle">SPA, proxies /api  · ×2</text>
+  </g>
+  <!-- Backend -->
+  <g>
+    <rect class="abox" x="290" y="322" width="240" height="62" rx="11"/>
+    <rect class="stripe2" x="290" y="322" width="6" height="62" rx="3"/>
+    <text class="atitle" x="410" y="347" text-anchor="middle">Backend — Node/Express API</text>
+    <text class="asub" x="410" y="366" text-anchor="middle">JWT + RBAC  · ×2–10</text>
+  </g>
+  <!-- HPA -->
+  <g>
+    <rect class="abox" x="576" y="330" width="176" height="46" rx="10"/>
+    <rect class="stripe3" x="576" y="330" width="6" height="46" rx="3"/>
+    <text class="atitle" x="664" y="350" text-anchor="middle" style="font-size:13px">HPA</text>
+    <text class="asub" x="664" y="366" text-anchor="middle">scale @60% CPU</text>
+  </g>
+  <!-- Postgres -->
+  <g>
+    <rect class="abox" x="150" y="440" width="230" height="66" rx="11"/>
+    <rect class="stripe3" x="150" y="440" width="6" height="66" rx="3"/>
+    <text class="atitle" x="265" y="466" text-anchor="middle">PostgreSQL</text>
+    <text class="asub" x="265" y="485" text-anchor="middle">StatefulSet + PVC</text>
+  </g>
+  <!-- EFS -->
+  <g>
+    <rect class="abox" x="440" y="440" width="230" height="66" rx="11"/>
+    <rect class="stripe3" x="440" y="440" width="6" height="66" rx="3"/>
+    <text class="atitle" x="555" y="466" text-anchor="middle">Amazon EFS</text>
+    <text class="asub" x="555" y="485" text-anchor="middle">lesson videos · RWX PVC</text>
+  </g>
+
+  <!-- flows -->
+  <path class="aflow" d="M410 76 L410 116"/>
+  <text class="alabel" x="420" y="102">HTTP</text>
+  <path class="aflow" d="M410 178 L410 218"/>
+  <path class="aflow" d="M410 280 L410 320"/>
+  <text class="alabel" x="420" y="304">/api</text>
+  <!-- backend -> postgres -->
+  <path class="aflow" d="M360 384 L300 438"/>
+  <text class="alabel" x="300" y="418">SQL</text>
+  <!-- backend -> efs (shared mount) -->
+  <path class="aflow" d="M470 384 L520 438"/>
+  <text class="alabel-o" x="495" y="408">videos</text>
+  <text class="alabel-o" x="495" y="424">(NFS mount)</text>
+  <!-- hpa <-> backend -->
+  <path class="adash" d="M576 353 L532 353"/>
+</svg>
+</div>
+
+  </section>
+
+  <section id="prereq">
+    <h2 class="sec"><span class="ey">Before you start</span> What you'll need</h2>
+    <div class="grid3">
+      <div class="card"><div class="k">Accounts</div><h3>AWS account</h3>
+        <p>With permissions for EKS, EC2, ECR, and IAM. A free-tier account works, but EKS itself
+        isn't free — remember the teardown step.</p></div>
+      <div class="card"><div class="k">Tools</div><h3>CLIs installed</h3>
+        <p>docker, kubectl, aws CLI v2, and eksctl on your machine. Step 1 checks each one.</p></div>
+      <div class="card"><div class="k">Time</div><h3>~45 minutes</h3>
+        <p>Cluster creation is the long pole (~15–20 min). The deploy itself takes a couple of
+        minutes.</p></div>
+    </div>
+    <p class="note">Prefer to practise locally first? Every manifest here also runs on
+    <b>minikube</b> or <b>kind</b> — the notes in Steps 3–4 tell you what changes. There's also a
+    <code>docker-compose.yml</code> in the repo for a one-command local stack.</p>
+  </section>
+
+  <section id="steps">
+    <h2 class="sec"><span class="ey">Deployment</span> Step by step</h2>
+    <p class="sec-intro">Follow these in order. Every command is copy-pasteable — hover a code block
+    and click <b>Copy</b>. Placeholders like <code>ap-south-1</code> or <code>&lt;LB-IP&gt;</code>
+    are the only things you may need to change.</p>
+    <div class="step" id="step-1"><div class="sh"><span class="sn">1</span><h3>Install the required tools</h3></div><div class="sbody"><p>You'll run everything from your own machine (or a cloud shell). Install these command-line
+tools and confirm each one responds:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># Docker (build images) — https://docs.docker.com/get-docker/
+docker --version
+
+# kubectl (talk to Kubernetes)
+kubectl version --client
+
+# AWS CLI v2 (ECR + EKS)
+aws --version
+
+# eksctl (create the EKS cluster)
+eksctl version</code></pre></figure><p>Then authenticate the AWS CLI with an IAM user/role that can manage EKS, EC2, ECR and
+IAM:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">aws configure          # enter Access key, Secret key, region (e.g. ap-south-1)
+aws sts get-caller-identity   # confirms you&#x27;re authenticated</code></pre></figure></div></div><div class="step" id="step-2"><div class="sh"><span class="sn">2</span><h3>Get the project code</h3></div><div class="sbody"><p>Copy the project onto your machine and move into it. The layout you should see:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">cd capstone-4-eks
+ls</code></pre></figure><figure class="code"><figcaption class="code-head"><span class="code-file">project structure</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-text">capstone-4-eks/
+├── backend/               # Node.js + Express API  (+ Dockerfile, db/init.sql)
+├── frontend/              # React (Vite) SPA        (+ Dockerfile, nginx.conf)
+├── k8s/
+│   ├── 00-namespace.yaml … 08-ingress.yaml   # one file per component
+│   └── full-deploy.yaml   # ALL components in one file
+├── scripts/push-to-ecr.sh # build + push images to ECR
+├── docker-compose.yml     # optional local test stack
+└── README.md</code></pre></figure></div></div><div class="step" id="step-3"><div class="sh"><span class="sn">3</span><h3>Provision an EKS cluster</h3></div><div class="sbody"><p>Create a managed Kubernetes cluster with two worker nodes. This takes roughly 15–20 minutes —
+eksctl builds the VPC, control plane, and node group for you.</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">eksctl create cluster \
+  --name ekswithavinash \
+  --region ap-south-1 \
+  --nodes 2 \
+  --node-type t3.medium \
+  --managed</code></pre></figure><p>When it finishes, point kubectl at the cluster and confirm the nodes are <code>Ready</code>:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">aws eks update-kubeconfig --name ekswithavinash --region ap-south-1
+kubectl get nodes</code></pre></figure><p class="note"><b>No AWS account?</b> The exact same manifests run on a local cluster. Swap this
+step for <code>minikube start</code> or <code>kind create cluster</code>, and in Step 5 load the
+images with <code>minikube image load</code> / <code>kind load docker-image</code> instead of
+pushing to ECR.</p></div></div><div class="step" id="step-4"><div class="sh"><span class="sn">4</span><h3>Install cluster add-ons</h3></div><div class="sbody"><p>Four cluster capabilities are needed before the app will run correctly.</p>
+<h4>a) metrics-server — required for the HPA</h4>
+<p>Without it the autoscaler can't read CPU and shows <code>&lt;unknown&gt;</code>.</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl -n kube-system rollout status deploy/metrics-server</code></pre></figure><h4>b) AWS Load Balancer Controller — turns the Ingress into a real ALB</h4>
+<p>Watches Ingress objects with <code>ingressClassName: alb</code> and provisions an
+<b>Application Load Balancer</b> that routes straight to the pod IPs, with TLS from ACM.
+It needs IAM permissions — classroom-simple: attach the policy to the node role
+(production would use IRSA / Pod Identity):</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># One-time: create the controller&#x27;s IAM policy from the official document
+curl -sO https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json      # skip if it already exists
+
+aws iam attach-role-policy --role-name &lt;NODE_ROLE_NAME&gt; \
+  --policy-arn arn:aws:iam::&lt;ACCOUNT_ID&gt;:policy/AWSLoadBalancerControllerIAMPolicy
+
+# Install the controller with Helm
+helm repo add eks https://aws.github.io/eks-charts &amp;&amp; helm repo update eks
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=ekswithavinash \
+  --set region=ap-south-1 \
+  --set vpcId=&lt;VPC_ID&gt;
+
+# Two controller pods should reach Running
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller</code></pre></figure><p class="note">The ALB lands in subnets tagged <code>kubernetes.io/role/elb=1</code>
+(eksctl tags its public subnets for you). HTTPS needs an <b>ACM certificate in the same
+region</b> that matches your domain — put its ARN in the
+<code>alb.ingress.kubernetes.io/certificate-arn</code> annotation in
+<code>k8s/08-ingress.yaml</code>. Our classroom cert covers
+<code>awswithavinashreddy.com</code> (apex only — no wildcard, so no subdomains).</p><h4>c) EBS CSI driver — required for the PostgreSQL PVC</h4>
+<p>EKS needs this driver to turn the PostgreSQL PersistentVolumeClaim into a real EBS
+volume. Skip it and that pod sits in <code>Pending</code> forever.</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">eksctl create addon --name aws-ebs-csi-driver --cluster ekswithavinash --region ap-south-1 --force
+
+# gp2 ships with EKS but recent clusters do NOT mark it as default —
+# without a default StorageClass the Postgres PVC sits Pending forever:
+kubectl get storageclass          # look for &quot;(default)&quot; next to gp2
+kubectl patch storageclass gp2 -p &#x27;{&quot;metadata&quot;: {&quot;annotations&quot;:{&quot;storageclass.kubernetes.io/is-default-class&quot;:&quot;true&quot;}}}&#x27;</code></pre></figure><h4>d) Amazon EFS — shared video storage (file system + CSI driver)</h4>
+<p>Lesson videos live on an EFS file system that <b>every backend replica mounts at the same
+time</b> (ReadWriteMany — something a single-node EBS volume cannot do). One-time AWS setup:
+create the file system, give it a network path in each node AZ, then install the CSI driver
+that teaches Kubernetes how to mount it.</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># The cluster&#x27;s VPC, its CIDR, and the node subnets (used below)
+aws eks describe-cluster --name ekswithavinash --region ap-south-1 \
+  --query &#x27;cluster.resourcesVpcConfig.vpcId&#x27; --output text
+aws ec2 describe-vpcs --vpc-ids &lt;VPC_ID&gt; --region ap-south-1 \
+  --query &#x27;Vpcs[0].CidrBlock&#x27; --output text
+aws ec2 describe-subnets --region ap-south-1 \
+  --filters Name=vpc-id,Values=&lt;VPC_ID&gt; \
+  --query &#x27;Subnets[].{id:SubnetId,az:AvailabilityZone}&#x27; --output table
+
+# Security group allowing NFS (TCP 2049) from inside the VPC
+aws ec2 create-security-group --group-name lms-efs-sg \
+  --description &quot;Allow NFS from EKS VPC&quot; --vpc-id &lt;VPC_ID&gt; --region ap-south-1
+aws ec2 authorize-security-group-ingress --group-id &lt;EFS_SG_ID&gt; \
+  --protocol tcp --port 2049 --cidr &lt;VPC_CIDR&gt; --region ap-south-1
+
+# The file system itself
+aws efs create-file-system --creation-token lms-videos \
+  --performance-mode generalPurpose --throughput-mode elastic \
+  --tags Key=Name,Value=lms-videos --region ap-south-1
+
+# One mount target per node AZ (repeat for each node subnet)
+aws efs create-mount-target --file-system-id &lt;FS_ID&gt; \
+  --subnet-id &lt;NODE_SUBNET&gt; --security-groups &lt;EFS_SG_ID&gt; --region ap-south-1
+
+# EFS CSI driver add-on + node permission to use it
+aws eks create-addon --cluster-name ekswithavinash \
+  --addon-name aws-efs-csi-driver --region ap-south-1
+aws iam attach-role-policy --role-name &lt;NODE_ROLE_NAME&gt; \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy</code></pre></figure><p>Finally, put <b>your</b> <code>&lt;FS_ID&gt;</code> in the <code>fileSystemId</code> parameter
+of the <code>efs-sc</code> StorageClass in <code>k8s/04-efs-storage.yaml</code> (and
+<code>k8s/full-deploy.yaml</code> if you deploy from the single file).</p>
+<p class="note">A <b>mount target</b> is the per-AZ network endpoint (ENI) pods use to reach EFS
+over NFS; the security group on it must allow port 2049 from the VPC. With
+<code>provisioningMode: efs-ap</code> in the StorageClass, the CSI driver auto-creates an EFS
+<b>Access Point</b> per PVC — no manual PV needed. For the full classroom walkthrough see the
+&quot;EKS + EFS: Shared Storage&quot; guide.</p>
+<p class="note">On minikube/kind these add-ons differ: run <code>minikube addons enable
+metrics-server ingress</code>, storage/PVCs work out of the box — and there is no EFS or ALB:
+see the note in <code>k8s/04-efs-storage.yaml</code> for swapping the video claim to a local
+ReadWriteOnce volume, and change the Ingress to <code>ingressClassName: nginx</code> (drop the
+<code>alb.*</code> annotations) to use minikube's ingress add-on instead.</p></div></div><div class="step" id="step-5"><div class="sh"><span class="sn">5</span><h3>Build and push the images to ECR</h3></div><div class="sbody"><p>The backend and frontend need to be container images in a registry the cluster can pull from.
+The included script creates the ECR repositories, logs Docker in, builds both images for the
+cluster's architecture, pushes them, and rewrites the <code>image:</code> lines in
+<code>full-deploy.yaml</code> to the pushed URIs.</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># From the project root:
+AWS_REGION=ap-south-1 IMAGE_TAG=1.0.0 ./scripts/push-to-ecr.sh</code></pre></figure><p>What the script does, start to finish:</p><figure class="code"><figcaption class="code-head"><span class="code-file">scripts/push-to-ecr.sh</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-bash">#!/usr/bin/env bash
+# =============================================================================
+# Build the Aviz Academy LMS images and push them to Amazon ECR, then wire the
+# pushed image URIs into k8s/full-deploy.yaml so it&#x27;s ready for `kubectl apply`.
+#
+# Prereqs: awscli v2 (configured), docker (with buildx), and permissions to
+# create/push to ECR repositories.
+#
+# Usage:
+#   ./scripts/push-to-ecr.sh
+#   AWS_REGION=ap-south-1 IMAGE_TAG=1.0.0 ./scripts/push-to-ecr.sh
+#
+# Configurable via environment variables:
+#   AWS_REGION        AWS region                      (default: ap-south-1)
+#   AWS_ACCOUNT_ID    12-digit account id             (default: auto-detected)
+#   IMAGE_TAG         tag to build/push               (default: latest)
+#   BACKEND_REPO      ECR repo name for the backend   (default: aviz-backend)
+#   FRONTEND_REPO     ECR repo name for the frontend  (default: aviz-frontend)
+#   PLATFORM          target platform                 (default: linux/amd64)
+#   UPDATE_MANIFEST   rewrite full-deploy.yaml images (default: true)
+# =============================================================================
+set -euo pipefail
+
+# --- resolve project paths (works regardless of where the script is called) --
+SCRIPT_DIR=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+ROOT_DIR=&quot;$(cd &quot;$SCRIPT_DIR/..&quot; &amp;&amp; pwd)&quot;
+
+# --- configuration -----------------------------------------------------------
+AWS_REGION=&quot;${AWS_REGION:-ap-south-1}&quot;
+IMAGE_TAG=&quot;${IMAGE_TAG:-latest}&quot;
+BACKEND_REPO=&quot;${BACKEND_REPO:-aviz-backend}&quot;
+FRONTEND_REPO=&quot;${FRONTEND_REPO:-aviz-frontend}&quot;
+PLATFORM=&quot;${PLATFORM:-linux/amd64}&quot;
+UPDATE_MANIFEST=&quot;${UPDATE_MANIFEST:-true}&quot;
+MANIFEST=&quot;$ROOT_DIR/k8s/full-deploy.yaml&quot;
+
+# --- helpers -----------------------------------------------------------------
+log()  { printf &#x27;\033[1;34m==&gt;\033[0m %s\n&#x27; &quot;$*&quot;; }
+die()  { printf &#x27;\033[1;31mError:\033[0m %s\n&#x27; &quot;$*&quot; &gt;&amp;2; exit 1; }
+
+command -v aws    &gt;/dev/null || die &quot;awscli not found on PATH&quot;
+command -v docker &gt;/dev/null || die &quot;docker not found on PATH&quot;
+
+# --- resolve account id ------------------------------------------------------
+if [[ -z &quot;${AWS_ACCOUNT_ID:-}&quot; ]]; then
+  log &quot;Detecting AWS account id via STS...&quot;
+  AWS_ACCOUNT_ID=&quot;$(aws sts get-caller-identity --query Account --output text)&quot; \
+    || die &quot;could not detect account id — set AWS_ACCOUNT_ID or configure the AWS CLI&quot;
+fi
+
+REGISTRY=&quot;${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com&quot;
+BACKEND_IMAGE=&quot;${REGISTRY}/${BACKEND_REPO}:${IMAGE_TAG}&quot;
+FRONTEND_IMAGE=&quot;${REGISTRY}/${FRONTEND_REPO}:${IMAGE_TAG}&quot;
+
+log &quot;Account : $AWS_ACCOUNT_ID&quot;
+log &quot;Region  : $AWS_REGION&quot;
+log &quot;Registry: $REGISTRY&quot;
+log &quot;Backend : $BACKEND_IMAGE&quot;
+log &quot;Frontend: $FRONTEND_IMAGE&quot;
+
+# --- ensure ECR repositories exist -------------------------------------------
+for repo in &quot;$BACKEND_REPO&quot; &quot;$FRONTEND_REPO&quot;; do
+  if aws ecr describe-repositories --region &quot;$AWS_REGION&quot; \
+        --repository-names &quot;$repo&quot; &gt;/dev/null 2&gt;&amp;1; then
+    log &quot;ECR repo &#x27;$repo&#x27; already exists&quot;
+  else
+    log &quot;Creating ECR repo &#x27;$repo&#x27;&quot;
+    aws ecr create-repository --region &quot;$AWS_REGION&quot; \
+        --repository-name &quot;$repo&quot; \
+        --image-scanning-configuration scanOnPush=true &gt;/dev/null
+  fi
+done
+
+# --- authenticate docker to ECR ----------------------------------------------
+log &quot;Logging docker in to ECR...&quot;
+aws ecr get-login-password --region &quot;$AWS_REGION&quot; \
+  | docker login --username AWS --password-stdin &quot;$REGISTRY&quot;
+
+# --- build &amp; push ------------------------------------------------------------
+# `docker buildx build --push` builds for the target platform (EKS nodes are
+# typically linux/amd64) and pushes in one step.
+log &quot;Building &amp; pushing backend image...&quot;
+docker buildx build --platform &quot;$PLATFORM&quot; \
+  -t &quot;$BACKEND_IMAGE&quot; &quot;$ROOT_DIR/backend&quot; --push
+
+log &quot;Building &amp; pushing frontend image...&quot;
+docker buildx build --platform &quot;$PLATFORM&quot; \
+  -t &quot;$FRONTEND_IMAGE&quot; &quot;$ROOT_DIR/frontend&quot; --push
+
+# --- wire image URIs into the combined manifest ------------------------------
+if [[ &quot;$UPDATE_MANIFEST&quot; == &quot;true&quot; &amp;&amp; -f &quot;$MANIFEST&quot; ]]; then
+  log &quot;Updating image references in k8s/full-deploy.yaml&quot;
+  # Idempotent: matches any current value ending in the repo name + tag.
+  perl -0pi -e &quot;s|image: \\S*${BACKEND_REPO}:\\S+|image: ${BACKEND_IMAGE}|g&quot;  &quot;$MANIFEST&quot;
+  perl -0pi -e &quot;s|image: \\S*${FRONTEND_REPO}:\\S+|image: ${FRONTEND_IMAGE}|g&quot; &quot;$MANIFEST&quot;
+fi
+
+cat &lt;&lt;EOF
+
+$(log &quot;Done.&quot;)
+Pushed:
+  $BACKEND_IMAGE
+  $FRONTEND_IMAGE
+
+Next:
+  kubectl apply -f k8s/full-deploy.yaml
+  kubectl get pods -n lms -w
+EOF</code></pre></figure><p class="note">EKS nodes are typically <code>linux/amd64</code>; the script builds for that
+platform explicitly, which matters if you're on an Apple-silicon Mac.</p></div></div><div class="step" id="step-6"><div class="sh"><span class="sn">6</span><h3>Review configuration and secrets</h3></div><div class="sbody"><p>Open <code>k8s/full-deploy.yaml</code> and set values appropriate for your environment before
+deploying. At minimum:</p>
+<ul>
+  <li>Change <code>JWT_SECRET</code> and the database passwords in the Secret blocks.</li>
+  <li>Set <code>fileSystemId</code> in the <code>efs-sc</code> StorageClass to <b>your</b> EFS
+      file system id from Step 4d — the claim can't bind without it.</li>
+  <li>If you ran the ECR script, verify the two <code>image:</code> lines now point at your ECR
+      registry.</li>
+</ul>
+<p class="note"><b>Keep the two sides in sync:</b> the DB user/password appears in both
+<b>lms-secrets</b> (what the API uses) and <b>postgres-secrets</b> (what Postgres is created with).
+If they drift, the backend can't connect and crash-loops.</p></div></div><div class="step" id="step-7"><div class="sh"><span class="sn">7</span><h3>Deploy to the cluster</h3></div><div class="sbody"><p>Two equivalent ways. <b>Option A</b> applies everything at once — recommended:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl apply -f k8s/full-deploy.yaml</code></pre></figure><p><b>Option B</b> applies the components one at a time, in order — useful for teaching, since you
+can watch each layer come up. (This is exactly the order shown in the
+<a href="#components">component reference</a> below.)</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl apply -f k8s/00-namespace.yaml
+kubectl apply -f k8s/01-configmap.yaml
+kubectl apply -f k8s/02-secrets.yaml
+kubectl apply -f k8s/03-postgres.yaml
+kubectl apply -f k8s/04-efs-storage.yaml
+kubectl apply -f k8s/05-backend.yaml
+kubectl apply -f k8s/06-backend-hpa.yaml
+kubectl apply -f k8s/07-frontend.yaml
+kubectl apply -f k8s/08-ingress.yaml</code></pre></figure><p>Kubernetes doesn't guarantee start order, but the readiness probes handle it: the backend only
+becomes <i>ready</i> once Postgres answers, and traffic isn't routed to it until then.</p></div></div><div class="step" id="step-8"><div class="sh"><span class="sn">8</span><h3>Watch the rollout</h3></div><div class="sbody"><p>Watch every pod reach <code>Running</code> and <code>READY 1/1</code> (press Ctrl-C to stop
+watching):</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl get pods -n lms -w</code></pre></figure><p>Check the higher-level objects too:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl get deploy,statefulset,svc,hpa,ingress -n lms
+kubectl rollout status deploy/backend -n lms
+kubectl rollout status deploy/frontend -n lms</code></pre></figure><p>Expected: <code>postgres-0</code> (1/1), <code>backend</code> (2/2),
+<code>frontend</code> (2/2). Also confirm the video claim bound — dynamic provisioning just
+created an EFS Access Point for it:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl get pvc -n lms      # lms-videos → Bound (STORAGECLASS efs-sc)</code></pre></figure></div></div><div class="step" id="step-9"><div class="sh"><span class="sn">9</span><h3>Open the application</h3></div><div class="sbody"><p>The controller provisions the ALB when the Ingress is created — after ~2–3 minutes the
+<code>ADDRESS</code> column shows its DNS name:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl get ingress -n lms     # ADDRESS = k8s-lms-…&lt;id&gt;.ap-south-1.elb.amazonaws.com
+
+# Watch the ALB reach &quot;active&quot; in AWS (or check the EC2 console → Load Balancers)
+aws elbv2 describe-load-balancers --region ap-south-1 \
+  --query &#x27;LoadBalancers[?contains(DNSName,`k8s-lms`)].State.Code&#x27; --output text</code></pre></figure><p>Point your Route53 domain at the ALB with an <b>alias A record</b> (an apex domain
+can't use a CNAME, but Route53 aliases work and are free):</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">ALB_DNS=$(kubectl get ingress lms-ingress -n lms \
+  -o jsonpath=&#x27;{.status.loadBalancer.ingress[0].hostname}&#x27;)
+ALB_ZONE=$(aws elbv2 describe-load-balancers --region ap-south-1 \
+  --query &quot;LoadBalancers[?DNSName==&#x27;$ALB_DNS&#x27;].CanonicalHostedZoneId&quot; --output text)
+
+aws route53 change-resource-record-sets --hosted-zone-id &lt;YOUR_ZONE_ID&gt; \
+  --change-batch &quot;{\&quot;Changes\&quot;:[{\&quot;Action\&quot;:\&quot;UPSERT\&quot;,\&quot;ResourceRecordSet\&quot;:{
+    \&quot;Name\&quot;:\&quot;awswithavinashreddy.com\&quot;,\&quot;Type\&quot;:\&quot;A\&quot;,
+    \&quot;AliasTarget\&quot;:{\&quot;HostedZoneId\&quot;:\&quot;$ALB_ZONE\&quot;,\&quot;DNSName\&quot;:\&quot;$ALB_DNS\&quot;,
+    \&quot;EvaluateTargetHealth\&quot;:false}}}]}&quot;</code></pre></figure><p class="note">Console alternative: hosted zone → <b>Create record</b> → leave the name
+empty (apex) → type <b>A</b> → toggle <b>Alias</b> on → &quot;Alias to Application and Classic
+Load Balancer&quot; → region → pick the <code>k8s-lms-…</code> ALB.</p><p>Now open
+<b>https://awswithavinashreddy.com</b> — plain HTTP redirects to HTTPS automatically
+(the <code>ssl-redirect</code> annotation). Log in with the seeded demo accounts:</p>
+<div class="accounts">
+  <div class="acct"><span class="pill pill-instructor">Instructor</span>
+    <code>alice@lms.dev</code> · <code>password123</code></div>
+  <div class="acct"><span class="pill pill-student">Student</span>
+    <code>bob@lms.dev</code> · <code>password123</code></div>
+</div>
+<p class="note"><b>Shortcut:</b> if editing <code>/etc/hosts</code> with a load-balancer IP is
+awkward, use a wildcard DNS service — e.g. browse to <code>http://&lt;LB-IP&gt;.nip.io</code> and
+set the Ingress hosts to the matching <code>*.nip.io</code> names.</p></div></div><div class="step" id="step-10"><div class="sh"><span class="sn">10</span><h3>Verify it works end to end</h3></div><div class="sbody"><p>Click through the full flow to prove every tier is wired up:</p>
+<ol class="checks">
+  <li>Log in as <b>alice</b> (instructor) → <b>Teach</b> → create a course, add a lesson.</li>
+  <li>On that lesson, <b>Upload video</b> → confirm it plays back (proves the EFS round-trip:
+      the file landed on the shared volume and the API streams it back at
+      <code>/api/videos/…</code>).</li>
+  <li>Log out, log in as <b>bob</b> (student) → open the course → <b>Enroll</b>.</li>
+  <li>Play a lesson, <b>Mark done</b> → the completion percentage updates.</li>
+  <li>Open <b>My Courses</b> → the progress bar reflects what you completed.</li>
+</ol>
+<p>Prefer the terminal? These hit the API through the Ingress:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># Log in and grab a token
+curl -s https://awswithavinashreddy.com/api/auth/login \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;email&quot;:&quot;alice@lms.dev&quot;,&quot;password&quot;:&quot;password123&quot;}&#x27;
+
+# Public course catalog
+curl -s https://awswithavinashreddy.com/api/courses</code></pre></figure></div></div><div class="step" id="step-11"><div class="sh"><span class="sn">11</span><h3>Demonstrate autoscaling (HPA)</h3></div><div class="sbody"><p>This is the headline Kubernetes moment. In one terminal, watch the autoscaler:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl get hpa -n lms -w</code></pre></figure><p>In another, generate CPU load against the backend from inside the cluster:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl run -n lms load --rm -it --image=busybox --restart=Never -- \
+  /bin/sh -c &quot;while true; do wget -q -O- http://backend:4000/api/courses; done&quot;</code></pre></figure><p>Within a minute or two the <code>REPLICAS</code> column climbs from 2 toward 10 as CPU passes
+the 60% target. Stop the load (Ctrl-C) and, after the cool-down window, it scales back down.
+Confirm the extra pods appeared:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl get pods -n lms -l app=backend</code></pre></figure></div></div><div class="step" id="step-12"><div class="sh"><span class="sn">12</span><h3>Demonstrate persistence</h3></div><div class="sbody"><p>Show that data outlives the pod. Delete the database pod — the StatefulSet reschedules it and
+the PVC reattaches with all data intact:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl delete pod postgres-0 -n lms
+kubectl get pods -n lms -w        # postgres-0 comes back</code></pre></figure><p>Reload the app: your courses, users, and progress are still there. Nothing was re-seeded —
+it was read from the persistent volume.</p>
+<p>Now prove the <b>shared</b> storage: the video you uploaded in Step 10 is visible from
+<i>every</i> backend replica, because they all mount the same EFS file system:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># List the video files from EVERY backend pod — same output in each
+for p in $(kubectl get pods -n lms -l app=backend -o name); do
+  echo &quot;== $p&quot;; kubectl exec -n lms $p -- find /data/videos/lessons -type f
+done
+
+# Kill any backend pod — the video still plays, the file lives on EFS
+kubectl delete pod -n lms &lt;one-backend-pod&gt;</code></pre></figure><p>That is ReadWriteMany in action: pods are ephemeral, the EFS data is not — and no matter
+which replica the HPA routes a request to, it serves the same files.</p></div></div><div class="step" id="step-13"><div class="sh"><span class="sn">13</span><h3>Tear down (avoid ongoing charges)</h3></div><div class="sbody"><p>Remove the application objects (deleting the <code>lms-videos</code> PVC also removes its
+auto-created EFS Access Point):</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">kubectl delete -f k8s/full-deploy.yaml</code></pre></figure><p>Delete the EFS pieces so they stop billing — mount targets first, then the file system,
+then its security group:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">aws efs describe-mount-targets --file-system-id &lt;FS_ID&gt; --region ap-south-1 \
+  --query &#x27;MountTargets[].MountTargetId&#x27; --output text
+aws efs delete-mount-target --mount-target-id &lt;MT_ID&gt; --region ap-south-1   # each one
+# wait ~1 minute, then:
+aws efs delete-file-system --file-system-id &lt;FS_ID&gt; --region ap-south-1
+aws ec2 delete-security-group --group-id &lt;EFS_SG_ID&gt; --region ap-south-1</code></pre></figure><p>Then delete the whole cluster so you stop paying for the nodes and load balancer:</p><figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash">eksctl delete cluster --name ekswithavinash --region ap-south-1</code></pre></figure><p class="note"><b>Don't skip this.</b> An idle EKS cluster and its load balancer keep billing.
+Optionally delete the ECR repositories too:
+<code>aws ecr delete-repository --repository-name aviz-backend --force</code> (and
+<code>aviz-frontend</code>).</p></div></div>
+  </section>
+
+  <section id="components">
+    <h2 class="sec"><span class="ey">Reference</span> Components &amp; manifests, in deploy order</h2>
+    <p class="sec-intro">Each block below is one component of the system, in the exact order it's
+    applied. The brief explains what it is and why it matters; the code is the actual manifest from
+    the repo's <code>k8s/</code> folder. Applying <code>00</code> → <code>08</code> in sequence is
+    identical to applying the single <code>full-deploy.yaml</code>.</p>
+    <div class="component"><div class="chead"><span class="num">00</span><span class="ctitle">Namespace</span><span class="ckind">lms</span></div><div class="cbody"><p>A namespace is a logical partition inside the cluster. Every other object in this project declares <code>namespace: lms</code>, so this must be created first. It lets you list, manage, and delete the whole app as one unit and scope RBAC and quotas to it.</p><ul class="keys"><li>Created before anything else — the rest of the manifest lives inside it.</li><li>Delete it and every LMS object goes with it (clean teardown).</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/00-namespace.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: lms
+  labels:
+    app.kubernetes.io/part-of: lms</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">01</span><span class="ctitle">ConfigMaps</span><span class="ckind">lms-config + lms-db-init</span></div><div class="cbody"><p>Two ConfigMaps hold non-secret configuration. <b>lms-config</b> feeds the backend its runtime settings (ports, DB host/name, the video storage path, CORS) as environment variables via <code>envFrom</code>. <b>lms-db-init</b> carries the SQL schema and demo seed data, mounted into Postgres so tables and demo accounts are created on first boot.</p><ul class="keys"><li>Change app behaviour without rebuilding the image.</li><li><code>VIDEO_DATA_DIR</code> must match the path the EFS volume is mounted at in the backend Deployment (<code>/data/videos</code>).</li><li>The init SQL runs only on an empty database (first start).</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/01-configmap.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml"># Non-secret configuration shared across the backend pods.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lms-config
+  namespace: lms
+data:
+  PORT: &quot;4000&quot;
+  JWT_EXPIRES_IN: &quot;12h&quot;
+  DB_HOST: &quot;postgres&quot;
+  DB_PORT: &quot;5432&quot;
+  DB_NAME: &quot;lms&quot;
+  # Lesson videos live here — the EFS volume mount shared by every replica.
+  VIDEO_DATA_DIR: &quot;/data/videos&quot;
+  CORS_ORIGIN: &quot;*&quot;
+---
+# Postgres init SQL, mounted into the StatefulSet&#x27;s initdb directory.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lms-db-init
+  namespace: lms
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS users (
+      id            SERIAL PRIMARY KEY,
+      name          TEXT        NOT NULL,
+      email         TEXT        NOT NULL UNIQUE,
+      password_hash TEXT        NOT NULL,
+      role          TEXT        NOT NULL CHECK (role IN (&#x27;student&#x27;, &#x27;instructor&#x27;)),
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS courses (
+      id            SERIAL PRIMARY KEY,
+      title         TEXT        NOT NULL,
+      description   TEXT        NOT NULL DEFAULT &#x27;&#x27;,
+      instructor_id INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS lessons (
+      id           SERIAL PRIMARY KEY,
+      course_id    INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      title        TEXT    NOT NULL,
+      description  TEXT    NOT NULL DEFAULT &#x27;&#x27;,
+      position     INTEGER NOT NULL DEFAULT 0,
+      video_object TEXT,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS enrollments (
+      id          SERIAL PRIMARY KEY,
+      student_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id   INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (student_id, course_id)
+    );
+    CREATE TABLE IF NOT EXISTS progress (
+      id           SERIAL PRIMARY KEY,
+      student_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      lesson_id    INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+      completed    BOOLEAN NOT NULL DEFAULT false,
+      completed_at TIMESTAMPTZ,
+      UNIQUE (student_id, lesson_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_courses_instructor ON courses(instructor_id);
+    CREATE INDEX IF NOT EXISTS idx_lessons_course     ON lessons(course_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
+    CREATE INDEX IF NOT EXISTS idx_progress_student   ON progress(student_id);
+
+    -- Demo accounts (password &quot;password123&quot; for both).
+    INSERT INTO users (name, email, password_hash, role) VALUES
+      (&#x27;Alice Instructor&#x27;, &#x27;alice@lms.dev&#x27;,
+       &#x27;$2b$10$FsfTzpBieNfLjgPw3AwCQeIB/1IbcdR.NC.L2VEru62eYReb/m4fW&#x27;, &#x27;instructor&#x27;),
+      (&#x27;Bob Student&#x27;, &#x27;bob@lms.dev&#x27;,
+       &#x27;$2b$10$FsfTzpBieNfLjgPw3AwCQeIB/1IbcdR.NC.L2VEru62eYReb/m4fW&#x27;, &#x27;student&#x27;)
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO courses (title, description, instructor_id)
+    SELECT &#x27;Kubernetes 101&#x27;,
+           &#x27;Learn container orchestration from pods to deployments and services.&#x27;,
+           u.id
+      FROM users u WHERE u.email = &#x27;alice@lms.dev&#x27;
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO lessons (course_id, title, description, position)
+    SELECT c.id, v.title, v.description, v.position
+      FROM courses c
+      CROSS JOIN (VALUES
+         (&#x27;What is Kubernetes?&#x27;, &#x27;Orchestration concepts and architecture.&#x27;, 1),
+         (&#x27;Pods and Deployments&#x27;, &#x27;The core workload primitives.&#x27;, 2),
+         (&#x27;Services and Ingress&#x27;, &#x27;Exposing your apps to traffic.&#x27;, 3)
+      ) AS v(title, description, position)
+     WHERE c.title = &#x27;Kubernetes 101&#x27;
+       AND NOT EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id);</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">02</span><span class="ctitle">Secrets</span><span class="ckind">lms-secrets + postgres-secrets</span></div><div class="cbody"><p>Sensitive values kept out of ConfigMaps and images: the JWT signing key and the database username/password the app uses. Postgres reads its own secret for bootstrap credentials. Written as <code>stringData</code> here for readability; Kubernetes stores them base64-encoded.</p><ul class="keys"><li>The DB credentials in <b>lms-secrets</b> must match <b>postgres-secrets</b>.</li><li>For real use, replace with a sealed-secrets controller, SOPS, or an external secret store.</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/02-secrets.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml"># Secrets: DB credentials and the JWT signing key.
+# NOTE: stringData values are plaintext here for demo clarity. In a real
+# cluster use a sealed-secrets controller, SOPS, or an external secrets store,
+# and never commit real credentials to git.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lms-secrets
+  namespace: lms
+type: Opaque
+stringData:
+  # Application / backend
+  JWT_SECRET: &quot;change-me-to-a-long-random-string&quot;
+  DB_USER: &quot;lms&quot;
+  DB_PASSWORD: &quot;lms-strong-password&quot;
+---
+# Postgres reads the same credentials so the DB and app stay in sync.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secrets
+  namespace: lms
+type: Opaque
+stringData:
+  POSTGRES_USER: &quot;lms&quot;
+  POSTGRES_PASSWORD: &quot;lms-strong-password&quot;
+  POSTGRES_DB: &quot;lms&quot;</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">03</span><span class="ctitle">PostgreSQL</span><span class="ckind">StatefulSet + headless Service + PVC</span></div><div class="cbody"><p>The system of record. A <b>StatefulSet</b> gives the pod a stable identity (<code>postgres-0</code>) and, through <code>volumeClaimTemplates</code>, a PersistentVolumeClaim whose data survives pod restarts and rescheduling. The headless Service (<code>clusterIP: None</code>) gives it a stable in-cluster DNS name. This is the persistence showcase.</p><ul class="keys"><li>Deploy before the backend — the backend's readiness probe waits on the DB.</li><li>PVC keeps data when the pod is deleted or moved.</li><li>On EKS this needs the EBS CSI driver + a default StorageClass (see Step 4).</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/03-postgres.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml"># Headless service backing the StatefulSet (stable network id).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: lms
+  labels:
+    app: postgres
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: lms
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        # postgres image runs as uid 999; make the mounted volume writable.
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: postgres-secrets
+          env:
+            # Keep PGDATA in a subdir so initdb is happy with the mount root.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: &quot;100m&quot;
+              memory: &quot;256Mi&quot;
+            limits:
+              cpu: &quot;500m&quot;
+              memory: &quot;512Mi&quot;
+          livenessProbe:
+            exec:
+              command: [&quot;pg_isready&quot;, &quot;-U&quot;, &quot;lms&quot;, &quot;-d&quot;, &quot;lms&quot;]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: [&quot;pg_isready&quot;, &quot;-U&quot;, &quot;lms&quot;, &quot;-d&quot;, &quot;lms&quot;]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: init
+          configMap:
+            name: lms-db-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [&quot;ReadWriteOnce&quot;]
+        resources:
+          requests:
+            storage: 5Gi
+        # Uncomment and set to your cluster&#x27;s storage class if needed.
+        # storageClassName: gp2</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">04</span><span class="ctitle">EFS shared video storage</span><span class="ckind">StorageClass + ReadWriteMany PVC</span></div><div class="cbody"><p>Shared storage for lesson videos on Amazon EFS. The <b>StorageClass</b> points the EFS CSI driver at your file system with <code>provisioningMode: efs-ap</code> — when the PVC arrives, the driver auto-creates an EFS <b>Access Point</b> (an isolated directory) for it, no manual PV needed. The claim is <code>ReadWriteMany</code>: every backend replica, on any node, mounts it at the same time.</p><ul class="keys"><li>RWX is the point — a Deployment's pods land on different nodes, and they all need the same files. EBS can't do that; EFS can.</li><li>Set <code>fileSystemId</code> to <b>your</b> file system from Step 4d.</li><li>The 5Gi request satisfies the API; EFS itself is elastic and unenforced.</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/04-efs-storage.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml"># Shared video storage on Amazon EFS (ReadWriteMany), replacing MinIO.
+# Prereqs: EFS file system + mount targets in the cluster VPC, SG allowing
+# NFS 2049 from the VPC CIDR, aws-efs-csi-driver add-on installed (Step 4d).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  # Dynamic provisioning: each PVC gets its own EFS Access Point.
+  provisioningMode: efs-ap
+  # REPLACE with your own FileSystemId.
+  fileSystemId: fs-0b1de3beaf8d3e5f6
+  directoryPerms: &quot;700&quot;
+---
+# The claim the backend Deployment mounts at /data/videos. ReadWriteMany is
+# the key line: all replicas, on any node, mount it simultaneously.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lms-videos
+  namespace: lms
+spec:
+  accessModes: [&quot;ReadWriteMany&quot;]
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 5Gi</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">05</span><span class="ctitle">Backend API</span><span class="ckind">Deployment + Service</span></div><div class="cbody"><p>The Node.js/Express REST API — 2 replicas to start. It reads plain config from <b>lms-config</b> and secrets from <b>lms-secrets</b> with <code>envFrom</code>, and mounts the shared EFS claim at <code>/data/videos</code> — where uploads land and videos are streamed from at <code>/api/videos/…</code>. Liveness hits <code>/healthz</code>; readiness hits <code>/readyz</code>, which checks the database connection.</p><ul class="keys"><li>App state lives in Postgres and on EFS, so the HPA can add and remove replicas freely.</li><li>The RWX volume means every replica — current or newly scaled — serves the same videos.</li><li>The ClusterIP Service <code>backend:4000</code> load-balances across replicas.</li><li>Set the real image here (or let the ECR script rewrite it).</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/05-backend.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: lms
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: backend
+          # Replace with your pushed image, e.g. &lt;registry&gt;/aviz-backend:1.0.0
+          image: aviz-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          # Pull non-secret config from the ConfigMap and secrets from the Secret.
+          envFrom:
+            - configMapRef:
+                name: lms-config
+            - secretRef:
+                name: lms-secrets
+          # Shared EFS volume: every replica sees the same video files.
+          volumeMounts:
+            - name: videos
+              mountPath: /data/videos
+          resources:
+            requests:
+              cpu: &quot;100m&quot;
+              memory: &quot;128Mi&quot;
+            limits:
+              cpu: &quot;500m&quot;
+              memory: &quot;256Mi&quot;
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: videos
+          persistentVolumeClaim:
+            claimName: lms-videos
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: lms
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">06</span><span class="ctitle">Horizontal Pod Autoscaler</span><span class="ckind">backend-hpa</span></div><div class="cbody"><p>The autoscaling showcase. The HPA scales the backend from 2 up to 10 replicas when average CPU crosses 60%, then scales back down once load subsides. Its behaviour is tuned for a quick scale-up and a gentle scale-down.</p><ul class="keys"><li>Requires <b>metrics-server</b> in the cluster (Step 4).</li><li>Reads CPU against the backend's resource <i>requests</i>.</li><li>Watch it react live under load in Step 9.</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/06-backend-hpa.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml"># Horizontal Pod Autoscaler for the backend. Scales 2→10 replicas based on
+# CPU utilisation. Requires the metrics-server to be installed in the cluster.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: lms
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">07</span><span class="ctitle">Frontend SPA</span><span class="ckind">Deployment + Service</span></div><div class="cbody"><p>nginx serving the built React single-page app — 2 replicas. nginx also reverse-proxies <code>/api</code> to the backend Service, so the browser only ever talks to one origin. The <code>BACKEND_URL</code> env var tells nginx where the API lives. Health is served at <code>/healthz</code>.</p><ul class="keys"><li>Runs as a non-root nginx image on port 8080.</li><li>The Service maps port 80 → container 8080.</li><li>Deploy after the backend so the proxy target exists.</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/07-frontend.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: lms
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          # Replace with your pushed image, e.g. &lt;registry&gt;/aviz-frontend:1.0.0
+          image: aviz-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            # nginx proxies /api here (the backend Service).
+            - name: BACKEND_URL
+              value: &quot;http://backend:4000&quot;
+          resources:
+            requests:
+              cpu: &quot;50m&quot;
+              memory: &quot;64Mi&quot;
+            limits:
+              cpu: &quot;200m&quot;
+              memory: &quot;128Mi&quot;
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: lms
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080</code></pre></figure></div></div><div class="component"><div class="chead"><span class="num">08</span><span class="ctitle">Ingress (AWS ALB)</span><span class="ckind">lms-ingress</span></div><div class="cbody"><p>The single public entry point. The AWS Load Balancer Controller reads this object and provisions a real <b>Application Load Balancer</b> that routes straight to the frontend pod IPs (<code>target-type: ip</code>); the frontend proxies <code>/api</code> (including video streaming at <code>/api/videos/…</code>) to the backend. TLS terminates at the ALB with the ACM certificate, and plain HTTP is redirected to HTTPS.</p><ul class="keys"><li>Requires the AWS Load Balancer Controller (Step 4b) and an ACM cert matching the host.</li><li><code>idle_timeout.timeout_seconds=300</code> keeps slow 500MB uploads alive (default is 60s).</li><li>One host covers everything — videos are served by the backend from EFS, so no second hostname is needed.</li><li>Deleting the Ingress deletes the ALB (clean teardown).</li></ul><figure class="code"><figcaption class="code-head"><span class="code-file">k8s/08-ingress.yaml</span><button class="copy" type="button" aria-label="Copy code">Copy</button></figcaption><pre><code class="lang-yaml"># Ingress exposing the app through an AWS Application Load Balancer.
+# Requires the AWS Load Balancer Controller: it watches Ingress objects with
+# ingressClassName &quot;alb&quot; and provisions a real ALB that routes straight to
+# the pod IPs (target-type: ip). TLS comes from ACM.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lms-ingress
+  namespace: lms
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: &#x27;[{&quot;HTTP&quot;: 80}, {&quot;HTTPS&quot;: 443}]&#x27;
+    # REPLACE with your own ACM certificate ARN (must cover the host below).
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:655700896650:certificate/307309d8-8a4f-4de5-acc0-192b31b57c79
+    # Send plain-HTTP visitors to HTTPS.
+    alb.ingress.kubernetes.io/ssl-redirect: &quot;443&quot;
+    # Default idle timeout is 60s; large video uploads need longer.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+spec:
+  ingressClassName: alb
+  rules:
+    # Main app: frontend serves the SPA and proxies /api to the backend.
+    # REPLACE with your own domain (must match the ACM certificate).
+    - host: awswithavinashreddy.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80</code></pre></figure></div></div>
+  </section>
+
+  <section id="trouble">
+    <h2 class="sec"><span class="ey">Help</span> Troubleshooting</h2>
+    <p class="sec-intro">The issues students hit most often, and how to clear them.</p>
+    <div class="trouble"><div class="tr"><div class="sym">Pods stuck in <code>Pending</code></div><div class="cause">Likely cause: Usually no schedulable node or an unbound PVC.</div><div class="fix">Fix: <code>kubectl describe pod &lt;name&gt; -n lms</code>. If it's the PVC, install the EBS CSI driver and confirm a default StorageClass exists (Step 4c). If it's scheduling, check <code>kubectl get nodes</code>.</div></div><div class="tr"><div class="sym"><code>ImagePullBackOff</code> / <code>ErrImagePull</code></div><div class="cause">Likely cause: The node can't pull the image.</div><div class="fix">Fix: Verify the <code>image:</code> URI matches what you pushed, that the ECR repo exists, and that the node IAM role allows ECR pulls (eksctl managed nodes get this by default). Re-run the ECR script if unsure.</div></div><div class="tr"><div class="sym">HPA shows <code>TARGETS &lt;unknown&gt;</code></div><div class="cause">Likely cause: metrics-server isn't running.</div><div class="fix">Fix: Install it (Step 4a) and wait a minute for metrics to populate: <code>kubectl top pods -n lms</code> should return numbers.</div></div><div class="tr"><div class="sym">Ingress <code>ADDRESS</code> is empty</div><div class="cause">Likely cause: The ALB controller isn't running, lacks IAM permissions, or can't find tagged subnets.</div><div class="fix">Fix: <code>kubectl logs -n kube-system deploy/aws-load-balancer-controller</code> shows the exact error. Check the controller pods are Running, the <code>AWSLoadBalancerControllerIAMPolicy</code> is attached to the node role (Step 4b), public subnets carry <code>kubernetes.io/role/elb=1</code>, and the certificate ARN in the Ingress is valid. A new ALB also takes ~2–3 min to go <code>active</code>.</div></div><div class="tr"><div class="sym">PVC <code>lms-videos</code> stuck <code>Pending</code></div><div class="cause">Likely cause: EFS CSI driver missing, or the StorageClass points at the wrong file system.</div><div class="fix">Fix: Confirm the add-on is ACTIVE (<code>kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-efs-csi-driver</code>) and that <code>fileSystemId</code> in the <code>efs-sc</code> StorageClass is <b>your</b> FS id. <code>kubectl describe pvc lms-videos -n lms</code> shows the provisioner error.</div></div><div class="tr"><div class="sym">Backend stuck <code>ContainerCreating</code> (mount timeout)</div><div class="cause">Likely cause: Pods can't reach EFS over NFS — almost always the security group or a missing mount target.</div><div class="fix">Fix: A mount target must exist (state <code>available</code>) in every AZ the nodes run in, and its security group must allow TCP 2049 from the VPC CIDR. <code>kubectl describe pod</code> shows the mount error in Events.</div></div><div class="tr"><div class="sym">Video won't play</div><div class="cause">Likely cause: The upload never landed on the volume, or the backend can't read it.</div><div class="fix">Fix: <code>kubectl exec deploy/backend -n lms -- find /data/videos/lessons -type f</code> — if the file is there, check <code>kubectl logs deploy/backend -n lms</code>; if not, re-upload and watch the logs for write errors on the mount.</div></div><div class="tr"><div class="sym">Backend <code>CrashLoopBackOff</code></div><div class="cause">Likely cause: Most often a DB credential mismatch.</div><div class="fix">Fix: Check <code>kubectl logs deploy/backend -n lms</code>. Ensure the DB user/password match between <b>lms-secrets</b> and <b>postgres-secrets</b>, and that <code>postgres-0</code> is Ready.</div></div></div>
+  </section>
+
+  <section id="cheat">
+    <h2 class="sec"><span class="ey">Reference</span> Command cheat sheet</h2>
+    <figure class="code cmd"><figcaption class="code-head"><span class="code-file">shell</span><button class="copy" type="button" aria-label="Copy commands">Copy</button></figcaption><pre><code class="lang-bash"># ---- inspect ----
+kubectl get pods -n lms                     # all app pods
+kubectl get all -n lms                      # deployments, services, etc.
+kubectl describe pod &lt;name&gt; -n lms          # why a pod is unhealthy
+kubectl logs deploy/backend -n lms          # backend logs
+kubectl top pods -n lms                     # live CPU/memory (needs metrics-server)
+
+# ---- scale &amp; autoscale ----
+kubectl get hpa -n lms -w                   # watch the autoscaler
+kubectl scale deploy/backend --replicas=4 -n lms   # manual scale
+
+# ---- exec into a pod ----
+kubectl exec -it deploy/backend -n lms -- sh
+
+# ---- restart a rollout ----
+kubectl rollout restart deploy/frontend -n lms
+
+# ---- teardown ----
+kubectl delete -f k8s/full-deploy.yaml
+# EFS: delete mount targets, then the file system + SG (see Step 13)
+aws efs delete-file-system --file-system-id &lt;FS_ID&gt; --region ap-south-1
+eksctl delete cluster --name ekswithavinash --region ap-south-1</code></pre></figure>
+  </section>
+</main>
+</div></div>
+
+<footer><div class="wrap">Aviz Academy — E-Learning Platform · Kubernetes deployment guide.
+Demo credentials are for local/classroom use only; rotate all secrets before any real deployment.
+</div></footer>
+
+<script>
+(function(){
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var pre = btn.closest('.code').querySelector('pre');
+      var text = pre ? pre.innerText : '';
+      navigator.clipboard.writeText(text).then(function(){
+        var old = btn.textContent; btn.textContent='Copied'; btn.classList.add('done');
+        setTimeout(function(){ btn.textContent=old; btn.classList.remove('done'); }, 1400);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
